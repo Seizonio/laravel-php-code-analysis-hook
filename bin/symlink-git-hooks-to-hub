@@ -1,0 +1,10 @@
+#!/bin/bash
+
+HOOK_DIR=$(git rev-parse --show-toplevel)/.git/hooks
+HOOK_SCRIPT=$(git rev-parse --show-toplevel)/vendor/bin/git-hook-hub
+HOOK='pre-commit'
+
+if [ ! -h $HOOK_DIR/$HOOK -a -x $HOOK_DIR/$HOOK ]; then
+    mv $HOOK_DIR/$HOOK $HOOK_DIR/$HOOK.local
+fi
+ln -s -f $HOOK_SCRIPT $HOOK_DIR/$HOOK

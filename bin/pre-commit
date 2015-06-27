@@ -1,0 +1,85 @@
+#!/bin/sh
+PROJECT=$(git rev-parse --show-toplevel)
+STAGED_FILES_CMD=`git diff --cached --name-only --diff-filter=ACMR HEAD | grep \\\\.php$`
+# Determine if a file list is passed
+if [ "$#" -eq 1 ]
+then
+    oIFS=$IFS
+    IFS='
+    '
+    SFILES="$1"
+    IFS=$oIFS
+fi
+SFILES=${SFILES:-$STAGED_FILES_CMD}
+if [ -n "$STATIC_ANALYSIS_IGNORE_ERRORS" ]
+then
+    echo "\nNote: You're using IGNORE_ERRORS mode - PHP errors will be detected, but will not block the commit.\n"
+    sleep 3s
+fi
+
+echo "Checking PHPUnit..."
+${PROJECT}/vendor/bin/phpunit
+if [ $? != 0 ]
+then
+    if [ -n "$STATIC_ANALYSIS_IGNORE_ERRORS" ]
+    then
+        echo "PHPUnit found some errors."
+    else
+        echo "Fix the PHPUnit errors before commit."
+        exit 1    
+    fi  
+fi
+
+echo "Checking PHP Lint..."
+for FILE in $SFILES
+do
+    php -l -d display_errors=0 $PROJECT/$FILE
+    if [ $? != 0 ]
+    then
+        echo "Fix the PHP errors before commit."
+        exit 1
+    fi
+    FILES="$FILES $PROJECT/$FILE"
+done
+
+if [ "$FILES" != "" ]
+then
+    echo "Running Code Sniffer..."
+    ${PROJECT}/vendor/bin/phpcs --standard=PSR2 --encoding=utf-8 -n -p $FILES
+    if [ $? != 0 ]
+    then
+        if [ -n "$STATIC_ANALYSIS_IGNORE_ERRORS" ]
+        then
+            echo "Code Sniffer found some errors."
+        else
+            echo "Fix the Code Sniffer errors before commit."
+            exit 1
+        fi
+    fi
+fi
+
+echo "Checking PHP Mess Detector..."
+
+PHPMD_CONFIG=${PROJECT}/vendor/laravel-php-code-analysis-hook/phpmd/phpmd.xml
+# CHECK IF USER HAS CUSTOM PHPMD configuration
+if [ -c "${PROJECT}/phpmd.xml" ]
+then
+    PHPMD_CONFIG = ${PROJECT}/phpmd.xml
+fi
+
+for FILE in $SFILES
+do
+    ${PROJECT}/vendor/bin/phpmd $PROJECT/$FILE text $PHPMD_CONFIG
+    if [ $? != 0 ]
+    then
+        if [ -n "$STATIC_ANALYSIS_IGNORE_ERRORS" ]
+        then
+            echo "PHP Mess Detector found some errors."
+        else
+            echo "Fix the PHP Mess Detector errors before commit."
+            exit 1    
+        fi
+    fi
+done
+
+exit $?
