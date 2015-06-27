@@ -60,7 +60,7 @@ fi
 
 echo "Checking PHP Mess Detector..."
 
-PHPMD_CONFIG=${PROJECT}/vendor/laravel-php-code-analysis-hook/phpmd/phpmd.xml
+PHPMD_CONFIG=${PROJECT}/vendor/seizonio/laravel-php-code-analysis-hook/phpmd/phpmd.xml
 # CHECK IF USER HAS CUSTOM PHPMD configuration
 if [ -c "${PROJECT}/phpmd.xml" ]
 then
